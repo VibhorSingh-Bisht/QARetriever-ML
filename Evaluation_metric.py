@@ -24,7 +24,7 @@ def evaluate_retrieval(pipeline, query, true_relevance, k=10):
     return ndcg_at_k(retrieved_relevances, k)
 
 # Example usage
-file_path = 'path/to/your/fast_food_data.txt'  # Change to your actual file path
+file_path = 'fast_food.txt'  # Change to your actual file path
 documents = load_documents_from_txt(file_path)
 
 # Initialize the pipeline

@@ -57,7 +57,7 @@ def load_documents_from_json(file_path):
     return [item['text'] for item in data]  
 
 
-file_path = 'fast food.txt'  
+file_path = 'fast_food.txt'  
 documents = load_documents_from_txt(file_path)  
 
 pipeline = RetrievalPipeline('sentence-transformers/all-MiniLM-L6-v2', 'cross-encoder/ms-marco-MiniLM-L-12-v2')
