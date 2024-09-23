@@ -28,7 +28,7 @@ file_path = 'fast_food.txt'  # Change to your actual file path
 documents = load_documents_from_txt(file_path)
 
 # Initialize the pipeline
-pipeline = RetrievalPipeline('sentence-transformers/all-MiniLM-L6-v2', 'cross-encoder/ms-marco-MiniLM-L-12-v2')
+pipeline = RetrievalPipeline('sentence-transformers/all-MiniLM-L6-v2', 'intfloat/e5-large-v2')
 pipeline.index_documents(documents)
 
 # Sample true relevance for a specific query (you can adjust this as needed)
