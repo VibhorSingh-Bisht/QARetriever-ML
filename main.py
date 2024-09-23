@@ -1,19 +1,13 @@
+#main.py
+
 import os
 import json
 from Dataset_preparation import prepare_beir_datasets
-from Retrieval_pipeline import RetrievalPipeline
-from Evaluation_metric import compare_pipelines
+from Retrieval_Pipeline import RetrievalPipeline, embedding_models, ranking_models
+from Evaluation_Metric import compare_pipelines
 
 # Configuration
 dataset_names = ['nq', 'hotpotqa', 'fiqa']
-embedding_models = {
-    'small': 'sentence-transformers/all-MiniLM-L6-v2',
-    'large': 'nvidia/nv-embedqa-e5-v5'
-}
-ranking_models = [
-    'cross-encoder/ms-marco-MiniLM-L-12-v2',
-    'nvidia/nv-rerankqa-mistral-4b-v3'
-]
 max_length = 512
 chunk_size = 200
 top_k = 10
@@ -21,7 +15,7 @@ top_k = 10
 def main():
     # Step 1: Prepare datasets
     print("Preparing datasets...")
-    prepared_datasets = prepare_beir_datasets(dataset_names, embedding_models['small'], max_length, chunk_size)
+    prepared_datasets = prepare_beir_datasets(dataset_names, embedding_models, max_length, chunk_size)
 
     # Step 2: Create pipelines
     print("Creating retrieval pipelines...")
@@ -37,17 +31,21 @@ def main():
         print(f"\nProcessing {dataset_name} dataset...")
         dataset_results = {}
 
-        # Index documents for each pipeline
-        for name, pipeline in pipelines.items():
-            print(f"Indexing documents for {name}")
-            pipeline.index_documents(dataset['corpus']['text'])
+        for pipeline_name, pipeline in pipelines.items():
+            print(f"Running pipeline: {pipeline_name}")
+            emb_size = pipeline_name.split('_')[0]
+            
+            # Index documents
+            pipeline.index_documents(dataset[emb_size]['corpus']['text'])
 
-        # Prepare queries and relevance judgments
-        queries = dataset['queries']['text']
-        relevance_judgments = dataset['answers']  # Assume this is in the correct format
+            # Prepare queries and relevance judgments
+            queries = dataset[emb_size]['queries']['text']
+            relevance_judgments = dataset['answers']  # Assume this is in the correct format
 
-        # Run evaluation
-        dataset_results = compare_pipelines(pipelines, queries, relevance_judgments, k=top_k)
+            # Run evaluation
+            ndcg_score = compare_pipelines({pipeline_name: pipeline}, queries, relevance_judgments, k=top_k)
+            dataset_results[pipeline_name] = ndcg_score[pipeline_name]
+
         results[dataset_name] = dataset_results
 
     # Step 4: Save results

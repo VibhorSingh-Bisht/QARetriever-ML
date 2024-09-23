@@ -1,8 +1,10 @@
+#Retrieval_Pipeline.py
+
 import torch
 from sentence_transformers import SentenceTransformer
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 import faiss
-import json  # Adjust based on your file format
+import json  
 import pandas as pd  # For CSV handling
 
 class RetrievalPipeline:
@@ -46,17 +48,17 @@ def load_documents_from_txt(file_path):
 # Function to load documents from a CSV file
 def load_documents_from_csv(file_path):
     df = pd.read_csv(file_path)
-    return df['text_column'].tolist()  # Replace 'text_column' with the actual column name
+    return df['text_column'].tolist()  
 
 # Function to load documents from a JSON file
 def load_documents_from_json(file_path):
     with open(file_path, 'r') as file:
         data = json.load(file)
-    return [item['text'] for item in data]  # Adjust based on your JSON structure
+    return [item['text'] for item in data]  
 
-# Example usage
-file_path = 'path/to/your/fast_food_data.txt'  # Change to your actual file path
-documents = load_documents_from_txt(file_path)  # Use the appropriate function based on your file format
+
+file_path = 'fast food.txt'  
+documents = load_documents_from_txt(file_path)  
 
 pipeline = RetrievalPipeline('sentence-transformers/all-MiniLM-L6-v2', 'cross-encoder/ms-marco-MiniLM-L-12-v2')
 pipeline.index_documents(documents)

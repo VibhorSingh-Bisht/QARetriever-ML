@@ -1,5 +1,7 @@
+#Evaluation_Metric.py
+
 import numpy as np
-from Retrieval_pipeline import RetrievalPipeline, load_documents_from_txt
+from Retrieval_Pipeline import RetrievalPipeline, load_documents_from_txt
 
 # Function to calculate NDCG
 def dcg_at_k(relevances, k):
