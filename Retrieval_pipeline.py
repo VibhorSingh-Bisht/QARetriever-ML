@@ -2,6 +2,8 @@ import torch
 from sentence_transformers import SentenceTransformer
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 import faiss
+import json  # Adjust based on your file format
+import pandas as pd  # For CSV handling
 
 class RetrievalPipeline:
     def __init__(self, embedding_model_name, ranking_model_name):
@@ -9,8 +11,10 @@ class RetrievalPipeline:
         self.ranking_model = AutoModelForSequenceClassification.from_pretrained(ranking_model_name)
         self.ranking_tokenizer = AutoTokenizer.from_pretrained(ranking_model_name)
         self.index = None
+        self.documents = []  # Initialize documents list
 
     def index_documents(self, documents):
+        self.documents = documents  # Store documents
         embeddings = self.embedding_model.encode(documents)
         self.index = faiss.IndexFlatIP(embeddings.shape[1])
         self.index.add(embeddings)
@@ -33,7 +37,35 @@ class RetrievalPipeline:
         reranked_docs = self.rerank_candidates(query, candidate_docs)
         return reranked_docs[:k]
 
+# Function to load documents from a text file
+def load_documents_from_txt(file_path):
+    with open(file_path, 'r') as file:
+        documents = file.readlines()
+    return [doc.strip() for doc in documents]
+
+# Function to load documents from a CSV file
+def load_documents_from_csv(file_path):
+    df = pd.read_csv(file_path)
+    return df['text_column'].tolist()  # Replace 'text_column' with the actual column name
+
+# Function to load documents from a JSON file
+def load_documents_from_json(file_path):
+    with open(file_path, 'r') as file:
+        data = json.load(file)
+    return [item['text'] for item in data]  # Adjust based on your JSON structure
+
 # Example usage
+file_path = 'path/to/your/fast_food_data.txt'  # Change to your actual file path
+documents = load_documents_from_txt(file_path)  # Use the appropriate function based on your file format
+
 pipeline = RetrievalPipeline('sentence-transformers/all-MiniLM-L6-v2', 'cross-encoder/ms-marco-MiniLM-L-12-v2')
-pipeline.index_documents(documents)  # You need to prepare your documents first
-results = pipeline.retrieve("Your query here")
+pipeline.index_documents(documents)
+
+# Query input and retrieval
+query = input("Enter your query: ")
+results = pipeline.retrieve(query)
+
+# Print results
+print("Retrieved Documents:")
+for result in results:
+    print(result)

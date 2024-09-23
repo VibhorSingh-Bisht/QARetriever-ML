@@ -1,5 +1,7 @@
 import numpy as np
+from Retrieval_pipeline import RetrievalPipeline, load_documents_from_txt
 
+# Function to calculate NDCG
 def dcg_at_k(relevances, k):
     relevances = np.asarray(relevances)[:k]
     n_relevances = len(relevances)
@@ -14,16 +16,31 @@ def ndcg_at_k(relevances, k):
     idcg = dcg_at_k(best_relevances, k)
     return dcg / idcg if idcg > 0 else 0.
 
-def evaluate_retrieval(pipeline, queries, true_relevances, k=10):
-    ndcg_scores = []
-    for query, true_relevance in zip(queries, true_relevances):
-        retrieved_docs = pipeline.retrieve(query, k)
-        retrieved_relevances = [true_relevance.get(doc, 0) for doc in retrieved_docs]
-        ndcg_scores.append(ndcg_at_k(retrieved_relevances, k))
-    return np.mean(ndcg_scores)
+def evaluate_retrieval(pipeline, query, true_relevance, k=10):
+    retrieved_docs = pipeline.retrieve(query, k)
+    retrieved_relevances = [true_relevance.get(doc, 0) for doc in retrieved_docs]
+    return ndcg_at_k(retrieved_relevances, k)
 
 # Example usage
-queries = ["query1", "query2", "query3"]
-true_relevances = [{"doc1": 3, "doc2": 2, "doc3": 1}, {"doc1": 2, "doc2": 3, "doc3": 1}, {"doc1": 1, "doc2": 2, "doc3": 3}]
-ndcg_10 = evaluate_retrieval(pipeline, queries, true_relevances, k=10)
-print(f"NDCG@10: {ndcg_10}")
+file_path = 'path/to/your/fast_food_data.txt'  # Change to your actual file path
+documents = load_documents_from_txt(file_path)
+
+# Initialize the pipeline
+pipeline = RetrievalPipeline('sentence-transformers/all-MiniLM-L6-v2', 'cross-encoder/ms-marco-MiniLM-L-12-v2')
+pipeline.index_documents(documents)
+
+# Sample true relevance for a specific query (you can adjust this as needed)
+true_relevance = {"What is a popular fast food item?": {"burger": 3, "fries": 2, "salad": 1}}
+
+# Runtime query input
+query = input("Enter your query: ")
+ndcg_score = evaluate_retrieval(pipeline, query, true_relevance, k=10)
+
+# Print the NDCG score
+print(f"NDCG@10 for the query '{query}': {ndcg_score}")
+
+# Optionally print retrieved documents
+results = pipeline.retrieve(query)
+print("Retrieved Documents:")
+for result in results:
+    print(result)
