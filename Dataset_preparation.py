@@ -4,7 +4,7 @@ import datasets
 from transformers import AutoTokenizer
 
 def load_and_preprocess_dataset(dataset_name, tokenizer_name, max_length=512):
-    dataset = datasets.load_dataset(f"BeIR/{dataset_name}")
+    dataset = datasets.load_dataset(f"BeIR/{dataset_name}",'corpus')
     
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
     
