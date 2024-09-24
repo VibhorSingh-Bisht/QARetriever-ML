@@ -3,9 +3,9 @@
 import datasets
 from transformers import AutoTokenizer
 
-def load_and_preprocess_dataset(dataset_name, tokenizer_name, max_length=512):
-    # Load dataset
-    dataset = datasets.load_dataset(f"BeIR/{dataset_name}")
+def load_and_preprocess_dataset(dataset_name, config_name, tokenizer_name, max_length=512):
+    # Load dataset with the specified config
+    dataset = datasets.load_dataset(f"BeIR/{dataset_name}", config_name)
     
     # Initialize tokenizer
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
@@ -25,20 +25,31 @@ def prepare_beir_datasets(dataset_names, embedding_models, max_length=512, chunk
     for dataset_name in dataset_names:
         dataset_dict = {}
         for emb_size, emb_model in embedding_models.items():
-            dataset = load_and_preprocess_dataset(dataset_name, emb_model, max_length)
+            # Load the 'corpus' and 'queries' configurations
+            corpus_dataset = load_and_preprocess_dataset(dataset_name, 'corpus', emb_model, max_length)
+            queries_dataset = load_and_preprocess_dataset(dataset_name, 'queries', emb_model, max_length)
             
             # Chunk the dataset if necessary
             if chunk_size:
                 # Implement chunking logic here
                 pass
             
-            dataset_dict[emb_size] = dataset
+            dataset_dict[emb_size] = {
+                'corpus': corpus_dataset,
+                'queries': queries_dataset
+            }
         
-        # Add relevance judgments or answers if available
-        # This part might need to be adjusted based on the actual structure of your datasets
-        dataset_dict['answers'] = dataset['test']['answers'] if 'answers' in dataset['test'] else None
+        # Retrieve relevance judgments or answers if available
+        relevance_judgments = None
+        if 'answers' in corpus_dataset:
+            relevance_judgments = corpus_dataset['answers']
+        elif 'answers' in queries_dataset:
+            relevance_judgments = queries_dataset['answers']
         
-        prepared_datasets[dataset_name] = dataset_dict
+        prepared_datasets[dataset_name] = {
+            'corpus': dataset_dict,
+            'answers': relevance_judgments
+        }
     
     return prepared_datasets
 

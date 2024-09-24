@@ -21,10 +21,10 @@ def run_experiments(prepared_datasets, pipelines):
             emb_size = pipeline_name.split('_')[0]
             
             # Index documents
-            pipeline.index_documents(dataset[emb_size]['test']['text'])
+            pipeline.index_documents(dataset['corpus'][emb_size]['corpus']['text'])
 
             # Prepare queries and relevance judgments
-            queries = dataset[emb_size]['test']['question']
+            queries = dataset['corpus'][emb_size]['queries']['text']
             relevance_judgments = dataset['answers']
 
             # Run evaluation
