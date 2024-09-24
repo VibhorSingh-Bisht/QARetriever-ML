@@ -1,75 +1,54 @@
+#Dataset_preparation.py
+
 import datasets
 from transformers import AutoTokenizer
-from tqdm.auto import tqdm
 
-def load_beir_dataset(dataset_name):
-    """Load a dataset from the BEIR benchmark."""
-    return datasets.load_dataset(f"BeIR/{dataset_name}")
-
-def preprocess_dataset(dataset, tokenizer, max_length=512, chunk_size=None):
-    """Preprocess the dataset by tokenizing and optionally chunking."""
+def load_and_preprocess_dataset(dataset_name, tokenizer_name, max_length=512):
+    # Load dataset
+    dataset = datasets.load_dataset(f"BeIR/{dataset_name}")
     
-    def tokenize_function(examples):
+    # Initialize tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+    
+    def preprocess_function(examples):
+        # Tokenize the texts
         return tokenizer(examples['text'], truncation=True, padding='max_length', max_length=max_length)
     
-    def chunk_text(text, chunk_size):
-        return [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
-    
-    def chunk_function(examples):
-        if chunk_size:
-            chunked_texts = [chunk_text(text, chunk_size) for text in examples['text']]
-            return {
-                'text': sum(chunked_texts, []),
-                'id': sum([[id_]*len(chunks) for id_, chunks in zip(examples['id'], chunked_texts)], [])
-            }
-        return examples
-    
-    # First, chunk the text if necessary
-    if chunk_size:
-        dataset = dataset.map(chunk_function, batched=True, remove_columns=dataset['corpus'].column_names)
-    
-    # Then, tokenize the text
-    tokenized_dataset = dataset.map(tokenize_function, batched=True, remove_columns=['text'])
+    # Apply preprocessing to the dataset
+    tokenized_dataset = dataset.map(preprocess_function, batched=True)
     
     return tokenized_dataset
 
-def prepare_beir_datasets(dataset_names, tokenizer_names, max_length=512, chunk_size=None):
-    """Prepare multiple BEIR datasets."""
+def prepare_beir_datasets(dataset_names, embedding_models, max_length=512, chunk_size=200):
     prepared_datasets = {}
     
-    for name in tqdm(dataset_names, desc="Preparing datasets"):
-        dataset = load_beir_dataset(name)
-        prepared_datasets[name] = {}
+    for dataset_name in dataset_names:
+        dataset_dict = {}
+        for emb_size, emb_model in embedding_models.items():
+            dataset = load_and_preprocess_dataset(dataset_name, emb_model, max_length)
+            
+            # Chunk the dataset if necessary
+            if chunk_size:
+                # Implement chunking logic here
+                pass
+            
+            dataset_dict[emb_size] = dataset
         
-        for tokenizer_key, tokenizer_name in tokenizer_names.items():
-            tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-            prepared_datasets[name][tokenizer_key] = {
-                'corpus': preprocess_dataset(dataset['corpus'], tokenizer, max_length, chunk_size),
-                'queries': preprocess_dataset(dataset['queries'], tokenizer, max_length)
-            }
+        # Add relevance judgments or answers if available
+        # This part might need to be adjusted based on the actual structure of your datasets
+        dataset_dict['answers'] = dataset['test']['answers'] if 'answers' in dataset['test'] else None
         
-        if 'answers' in dataset:
-            prepared_datasets[name]['answers'] = dataset['answers']
+        prepared_datasets[dataset_name] = dataset_dict
     
     return prepared_datasets
 
-# Usage
-dataset_names = ['nq', 'hotpotqa', 'fiqa']
-tokenizer_names = {
-    'small': 'sentence-transformers/all-MiniLM-L6-v2',
-    'large': 'intfloat/e5-large-v2'
-}
-
-prepared_datasets = prepare_beir_datasets(dataset_names, tokenizer_names, max_length=512, chunk_size=200)
-
-# Print some information about the prepared datasets
-for name, dataset in prepared_datasets.items():
-    print(f"\n{name} dataset:")
-    for tokenizer_key in tokenizer_names.keys():
-        print(f"  {tokenizer_key.capitalize()} tokenizer:")
-        print(f"    Corpus size: {len(dataset[tokenizer_key]['corpus'])}")
-        print(f"    Number of queries: {len(dataset[tokenizer_key]['queries'])}")
-    if 'answers' in dataset:
-        print(f"  Number of answers: {len(dataset['answers'])}")
-    print(f"  Example query: {dataset[list(tokenizer_names.keys())[0]]['queries'][0]['text']}")
-    print(f"  Example corpus item: {dataset[list(tokenizer_names.keys())[0]]['corpus'][0]['text'][:100]}...")
+# Example usage
+if __name__ == "__main__":
+    dataset_names = ['nq', 'hotpotqa', 'fiqa']
+    embedding_models = {
+        'small': 'sentence-transformers/all-MiniLM-L6-v2',
+        'large': 'intfloat/e5-large-v2'
+    }
+    prepared_datasets = prepare_beir_datasets(dataset_names, embedding_models)
+    for name, dataset in prepared_datasets.items():
+        print(f"{name} dataset prepared with the following keys: {dataset.keys()}")

@@ -1,30 +1,34 @@
-#Retrieval_Pipeline.py
+# Retrieval_pipeline.py
 
 import torch
 from sentence_transformers import SentenceTransformer
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
-import faiss
-import json  
-import pandas as pd  # For CSV handling
 
 class RetrievalPipeline:
     def __init__(self, embedding_model_name, ranking_model_name):
-        self.embedding_model = SentenceTransformer(embedding_model_name)
-        self.ranking_model = AutoModelForSequenceClassification.from_pretrained(ranking_model_name)
-        self.ranking_tokenizer = AutoTokenizer.from_pretrained(ranking_model_name)
+        self.embedding_model = self.load_embedding_model(embedding_model_name)
+        self.ranking_model, self.ranking_tokenizer = self.load_ranking_model(ranking_model_name)
         self.index = None
-        self.documents = []  # Initialize documents list
+        self.documents = None
+
+    def load_embedding_model(self, model_name):
+        return SentenceTransformer(model_name)
+
+    def load_ranking_model(self, model_name):
+        return (
+            AutoModelForSequenceClassification.from_pretrained(model_name),
+            AutoTokenizer.from_pretrained(model_name)
+        )
 
     def index_documents(self, documents):
-        self.documents = documents  # Store documents
+        self.documents = documents
         embeddings = self.embedding_model.encode(documents)
-        self.index = faiss.IndexFlatIP(embeddings.shape[1])
-        self.index.add(embeddings)
+        # Implement indexing logic here (e.g., using FAISS)
 
     def retrieve_candidates(self, query, k=100):
         query_embedding = self.embedding_model.encode([query])
-        _, I = self.index.search(query_embedding, k)
-        return I[0]
+        # Implement retrieval logic here
+        # Return indices of top k documents
 
     def rerank_candidates(self, query, candidate_docs):
         inputs = self.ranking_tokenizer([(query, doc) for doc in candidate_docs], padding=True, truncation=True, return_tensors="pt")
@@ -39,35 +43,22 @@ class RetrievalPipeline:
         reranked_docs = self.rerank_candidates(query, candidate_docs)
         return reranked_docs[:k]
 
-# Function to load documents from a text file
-def load_documents_from_txt(file_path):
-    with open(file_path, 'r') as file:
-        documents = file.readlines()
-    return [doc.strip() for doc in documents]
+# Usage example
+embedding_models = {
+    'small': 'sentence-transformers/all-MiniLM-L6-v2',
+    'large': 'intfloat/e5-large-v2'  # Replacement for nvidia/nv-embedqa-e5-v5
+}
 
-# Function to load documents from a CSV file
-def load_documents_from_csv(file_path):
-    df = pd.read_csv(file_path)
-    return df['text_column'].tolist()  
+ranking_models = [
+    'cross-encoder/ms-marco-MiniLM-L-12-v2',
+    'cross-encoder/ms-marco-MiniLM-L-6-v2'  # A smaller alternative to compare
+]
 
-# Function to load documents from a JSON file
-def load_documents_from_json(file_path):
-    with open(file_path, 'r') as file:
-        data = json.load(file)
-    return [item['text'] for item in data]  
+# Create pipelines
+pipelines = {}
+for emb_size, emb_model in embedding_models.items():
+    for rank_model in ranking_models:
+        key = f"{emb_size}_{rank_model.split('/')[-1]}"
+        pipelines[key] = RetrievalPipeline(emb_model, rank_model)
 
-
-file_path = 'fast_food.txt'  
-documents = load_documents_from_txt(file_path)  
-
-pipeline = RetrievalPipeline('sentence-transformers/all-MiniLM-L6-v2', 'cross-encoder/ms-marco-MiniLM-L-12-v2')
-pipeline.index_documents(documents)
-
-# Query input and retrieval
-query = input("Enter your query: ")
-results = pipeline.retrieve(query)
-
-# Print results
-print("Retrieved Documents:")
-for result in results:
-    print(result)
+print("Created pipelines:", list(pipelines.keys()))

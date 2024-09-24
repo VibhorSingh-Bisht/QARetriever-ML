@@ -1,9 +1,8 @@
-#Evaluation_Metric.py
+#Evaluation_metric.py
 
 import numpy as np
-from Retrieval_Pipeline import RetrievalPipeline, load_documents_from_txt
+from tqdm import tqdm
 
-# Function to calculate NDCG
 def dcg_at_k(relevances, k):
     relevances = np.asarray(relevances)[:k]
     n_relevances = len(relevances)
@@ -18,31 +17,26 @@ def ndcg_at_k(relevances, k):
     idcg = dcg_at_k(best_relevances, k)
     return dcg / idcg if idcg > 0 else 0.
 
-def evaluate_retrieval(pipeline, query, true_relevance, k=10):
-    retrieved_docs = pipeline.retrieve(query, k)
-    retrieved_relevances = [true_relevance.get(doc, 0) for doc in retrieved_docs]
-    return ndcg_at_k(retrieved_relevances, k)
+def evaluate_pipeline(pipeline, queries, true_relevances, k=10):
+    ndcg_scores = []
+    for query, true_relevance in tqdm(zip(queries, true_relevances), total=len(queries)):
+        retrieved_docs = pipeline.retrieve(query, k)
+        retrieved_relevances = [true_relevance.get(doc, 0) for doc in retrieved_docs]
+        ndcg_scores.append(ndcg_at_k(retrieved_relevances, k))
+    return np.mean(ndcg_scores)
 
-# Example usage
-file_path = 'fast_food.txt'  # Change to your actual file path
-documents = load_documents_from_txt(file_path)
+def compare_pipelines(pipelines, queries, true_relevances, k=10):
+    results = {}
+    for name, pipeline in pipelines.items():
+        print(f"Evaluating {name}")
+        results[name] = evaluate_pipeline(pipeline, queries, true_relevances, k)
+    
+    # Calculate improvement percentages
+    baseline = min(results.values())
+    for name, score in results.items():
+        improvement = ((score - baseline) / baseline) * 100
+        print(f"{name}: NDCG@{k} = {score:.4f} (Improvement: {improvement:.2f}%)")
 
-# Initialize the pipeline
-pipeline = RetrievalPipeline('sentence-transformers/all-MiniLM-L6-v2', 'intfloat/e5-large-v2')
-pipeline.index_documents(documents)
+    return results
 
-# Sample true relevance for a specific query (you can adjust this as needed)
-true_relevance = {"What is a popular fast food item?": {"burger": 3, "fries": 2, "salad": 1}}
-
-# Runtime query input
-query = input("Enter your query: ")
-ndcg_score = evaluate_retrieval(pipeline, query, true_relevance, k=10)
-
-# Print the NDCG score
-print(f"NDCG@10 for the query '{query}': {ndcg_score}")
-
-# Optionally print retrieved documents
-results = pipeline.retrieve(query)
-print("Retrieved Documents:")
-for result in results:
-    print(result)
+# You would then run this comparison for your different pipeline configurations
